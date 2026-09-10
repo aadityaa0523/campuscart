@@ -1,0 +1,51 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# In the Render dashboard: New -> Blueprint -> pick this repo. It reads this
+# file and proposes both services below. DATABASE_URL and REDIS_URL are left
+# unset here (sync: false) because they come from Neon/Upstash, not Render —
+# you paste them in during blueprint setup. JWT_SECRET is auto-generated.
+
+services:
+  - type: web
+    name: campuscart-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: sh -c "npx prisma migrate deploy && node dist/index.js"
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*" # tighten once you know the app's exp:// / custom scheme origin, or leave as-is for an APK (no browser CORS involved)
+      - key: GROUP_THRESHOLD_PAISE
+        value: "20000"
+      - key: GROUP_TTL_MINUTES
+        value: "60"
+      - key: EXPO_PUSH_ENABLED
+        value: "false"
+
+  - type: worker
+    name: campuscart-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: node dist/jobs/worker.js
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: EXPO_PUSH_ENABLED
+        value: "false"
