@@ -83,7 +83,8 @@ describe("group order lifecycle", () => {
     expect(joinRes.json().totalPaise).toBe(21000);
 
     // B sets a UPI VPA (required before claiming coordinator) and claims.
-    await app.inject({ method: "PATCH", url: "/users/me", headers: auth(b.accessToken), payload: { upiVpa: "b@upi" } });
+    const upiRes = await app.inject({ method: "PATCH", url: "/users/me", headers: auth(b.accessToken), payload: { upiVpa: "coordinator-b@upi" } });
+    expect(upiRes.statusCode).toBe(200);
     const claimRes = await app.inject({
       method: "POST",
       url: `/groups/${group.id}/claim-coordinator`,
