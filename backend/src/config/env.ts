@@ -12,6 +12,10 @@ const schema = z.object({
   // Option B (Razorpay/Cashfree) — unset in the MVP deployment, see src/routes/webhooks.ts
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),
   EXPO_PUSH_ENABLED: z.coerce.boolean().default(false),
+  // Run the expiry-sweep/push BullMQ workers inside the API process instead
+  // of a separate one — for hosts whose free tier has no worker process
+  // type (e.g. Render). See src/jobs/workers.ts.
+  RUN_WORKERS_INLINE: z.coerce.boolean().default(false),
 });
 
 export type Env = z.infer<typeof schema>;

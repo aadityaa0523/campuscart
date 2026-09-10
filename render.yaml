@@ -1,8 +1,14 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
 # In the Render dashboard: New -> Blueprint -> pick this repo. It reads this
-# file and proposes both services below. DATABASE_URL and REDIS_URL are left
+# file and proposes the service below. DATABASE_URL and REDIS_URL are left
 # unset here (sync: false) because they come from Neon/Upstash, not Render —
 # you paste them in during blueprint setup. JWT_SECRET is auto-generated.
+#
+# Single web service only: Render's free plan doesn't offer a Background
+# Worker service type, so RUN_WORKERS_INLINE=true runs the expiry-sweep and
+# push-notification jobs inside this same process instead of a separate one
+# (see src/jobs/workers.ts). Split them back out into their own `type: worker`
+# service once you're off the free plan and want to scale them independently.
 
 services:
   - type: web
@@ -32,20 +38,5 @@ services:
         value: "60"
       - key: EXPO_PUSH_ENABLED
         value: "false"
-
-  - type: worker
-    name: campuscart-worker
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    dockerCommand: node dist/jobs/worker.js
-    plan: free
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: EXPO_PUSH_ENABLED
-        value: "false"
+      - key: RUN_WORKERS_INLINE
+        value: "true"
