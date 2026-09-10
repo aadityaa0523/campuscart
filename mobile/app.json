@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "CampusCart",
+    "slug": "campuscart",
+    "scheme": "campuscart",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "edu.nitt.campuscart"
+    },
+    "android": {
+      "package": "edu.nitt.campuscart"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-status-bar",
+      "expo-notifications"
+    ]
+  }
+}

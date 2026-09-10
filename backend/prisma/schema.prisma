@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---- Auth / identity -------------------------------------------------
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  name             String
+  hostelId         String
+  role             Role     @default(STUDENT)
+  reliabilityScore Int      @default(100) // 0-100, see src/lib/reliability.ts
+  upiVpa           String? // needed once they act as a coordinator
+  createdAt        DateTime @default(now())
+
+  hostel            Hostel             @relation(fields: [hostelId], references: [id])
+  groupItems        GroupItem[]
+  contributions     Contribution[]
+  coordinatedGroups GroupOrder[]       @relation("Coordinator")
+  reliabilityEvents ReliabilityEvent[]
+  refreshTokens     RefreshToken[]
+  pushTokens        PushToken[]
+  disputesRaised    Dispute[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+model RefreshToken {
+  id               String    @id @default(cuid())
+  userId           String
+  tokenHash        String    @unique // sha256 of the actual refresh token, never store it raw
+  revoked          Boolean   @default(false)
+  replacedByHash   String? // rotation chain, lets us detect reuse of a revoked token
+  createdAt        DateTime  @default(now())
+  expiresAt        DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Hostel {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  users       User[]
+  groupOrders GroupOrder[]
+}
+
+// ---- Group ordering ----------------------------------------------------
+
+model GroupOrder {
+  id                 String      @id @default(cuid())
+  hostelId           String
+  store              String      @default("Blinkit")
+  status             GroupStatus @default(OPEN)
+  thresholdPaise     Int         @default(20000) // ₹200
+  deliveryFeePaise   Int         @default(0)
+  actualTotalPaise   Int? // filled in after the real order is placed, for reconciliation
+  proofImageUrl      String?
+  coordinatorUserId  String?
+  createdAt          DateTime    @default(now())
+  expiresAt          DateTime
+  completedAt        DateTime?
+
+  hostel        Hostel         @relation(fields: [hostelId], references: [id])
+  coordinator   User?          @relation("Coordinator", fields: [coordinatorUserId], references: [id])
+  items         GroupItem[]
+  contributions Contribution[]
+  disputes      Dispute[]
+
+  @@index([hostelId, status])
+  @@index([status, expiresAt])
+}
+
+enum GroupStatus {
+  OPEN // below threshold, accepting joins
+  THRESHOLD_MET // at/above threshold, still accepting joins until claimed
+  AWAITING_PAYMENTS // a coordinator claimed the group, split is locked, collecting contributions
+  COMPLETED
+  EXPIRED // never crossed threshold in time
+  CANCELLED
+  DISPUTED
+}
+
+model GroupItem {
+  id           String   @id @default(cuid())
+  groupOrderId String
+  userId       String
+  name         String
+  pricePaise   Int
+  quantity     Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  groupOrder GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@index([groupOrderId])
+}
+
+model Contribution {
+  id                String             @id @default(cuid())
+  groupOrderId      String
+  userId            String
+  amountPaise       Int // this user's item subtotal + their share of the delivery fee
+  status            ContributionStatus @default(PENDING)
+  upiRef            String? // transaction ref embedded in the UPI deep link, for reconciliation
+  paymentGatewayRef String? // Option B: the aggregator's payment id, once wired up
+  verifiedByWebhook Boolean            @default(false) // Option B only; Option A payments are never "webhook verified"
+  paidAt            DateTime?
+
+  groupOrder GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([groupOrderId, userId])
+}
+
+enum ContributionStatus {
+  PENDING
+  CLAIMED_PAID // Option A: student says "I've paid" — coordinator still confirms
+  PAID
+  REFUNDED
+}
+
+model ReliabilityEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // PAYMENT_CONFIRMED | PAYMENT_MISSED | ORDER_COMPLETED | ORDER_CANCELLED | COORDINATOR_COMPLETED | COORDINATOR_FAILED
+  delta     Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Dispute {
+  id           String        @id @default(cuid())
+  groupOrderId String
+  raisedBy     String
+  reason       String
+  status       DisputeStatus @default(OPEN)
+  createdAt    DateTime      @default(now())
+  resolvedAt   DateTime?
+
+  groupOrder GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [raisedBy], references: [id])
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String // ios | android
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String // e.g. "coordinator.claim", "payment.confirmed", "login.failed"
+  metadata  Json
+  ip        String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+}
