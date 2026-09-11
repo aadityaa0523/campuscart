@@ -10,7 +10,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://campuscart-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://campuscart-api-b6gg.onrender.com"
       }
     },
     "production": {
