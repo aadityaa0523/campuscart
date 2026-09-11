@@ -16,7 +16,6 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: sh -c "npx prisma migrate deploy && node dist/index.js"
     plan: free
     healthCheckPath: /health
     envVars:

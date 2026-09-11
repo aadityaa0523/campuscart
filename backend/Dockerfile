@@ -18,4 +18,8 @@ COPY prisma ./prisma
 
 EXPOSE 3000
 USER node
-CMD ["node", "dist/index.js"]
+# Run pending migrations before starting — exec-form CMD passes the whole
+# string to `-c` correctly, unlike a host's own "start command" field, which
+# may not shell-interpret it the same way. `exec` swaps the shell for the
+# node process so it (not sh) receives Render's SIGTERM on redeploy/restart.
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/index.js"]
