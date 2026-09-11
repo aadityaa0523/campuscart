@@ -20,7 +20,9 @@ const userRoutes: FastifyPluginAsync = async (app) => {
     return safe;
   });
 
-  app.get("/hostels", { preHandler: app.authenticate }, async () => {
+  // Public: the signup screen needs the hostel list before a user has an
+  // account, let alone a token. Just names/ids, nothing sensitive.
+  app.get("/hostels", async () => {
     return app.prisma.hostel.findMany();
   });
 };

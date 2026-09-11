@@ -2,7 +2,9 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const HOSTELS = ["Hostel 1", "Hostel 2", "Hostel 3", "Hostel 5", "Hostel 7"];
+// Real hostel names for this campus deployment. Add more here and re-run
+// `npm run prisma:seed` (upsert is idempotent, safe to re-run any time).
+const HOSTELS = ["Aquamarine A", "Aquamarine B"];
 
 async function main() {
   for (const name of HOSTELS) {
